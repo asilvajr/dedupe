@@ -4,13 +4,15 @@
 # Dict(Key => Value) => Dict(Sha256-Hash => List[(Filenames, Size,Date, Quality)])
 # Output to file the results
 
-
+import csv
 import hashlib
 import math
 import os
 import re
 import send2trash
+import platform
 import sys
+import argparse
 
 
 BUF_SIZE = 1048576*256
@@ -64,25 +66,25 @@ def print_table(dupe_table):
                 v.insert(0, v.pop(v.index(i)))
         dupe_table[k] = v
 
-    with open('dupe_file.log','w') as dupe_log:
+    with open('dupe_record.txt','w') as dupe_record:
         for k, v in dupe_table.items():
             skipped = False
-            dupe_log.write(f"{k} => {v}\n\n")
+            dupe_record.write(f"{k} => {v}\n\n")
             for idx, i in enumerate(v):
                 rstr = r"\[[a-zA-Z ]*\]\s?[a-zA-Z0-9&\- ]*-\s?[a-zA-Z\0-9_', ]*"
 
                 if idx == len(v)-1 or skipped:
-                    dupe_log.write(f"Deleting file: {i}\n")
+                    dupe_record.write(f"Deleting file: {i}\n")
                     file_data_count = file_data_count + os.path.getsize(i)
                     delete_file_count = delete_file_count + 1
                     send2trash.send2trash(i)
 
                 if re.search(rstr, i) and not skipped:
-                    dupe_log.write(f"Matched {i}\n")
+                    dupe_record.write(f"Matched {i}\n")
                     skipped = True
                     continue
 
-        dupe_log.write(f"Deleting {delete_file_count} files or {convert_size(file_data_count)} of Data.")
+        dupe_record.write(f"Deleting {delete_file_count} files or {convert_size(file_data_count)} of Data.")
 
 def convert_size(size_bytes):
    if size_bytes == 0:
@@ -123,7 +125,12 @@ def delete_files(to_be_deleted):
 
 
 def main(argv):
-    path = argv[1]
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-f","--source-file", help = "File listing pre-populated names and hashes.")
+    parser.add_argument("directory",help="Directory intended to be scanned")
+    args = parser.parse_args()
+
+    path = args.directory
     print("Scanning path:", path)
     fht, dupe_table = scan_directory(path)
 
